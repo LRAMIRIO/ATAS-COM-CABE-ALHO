@@ -21,6 +21,9 @@ st.markdown(
 
     2. Depois, faça upload das planilhas individuais (uma por empresa).  
        O nome de cada arquivo deve corresponder, ao menos parcialmente, à razão social para que a correspondência funcione.
+
+    A partir da linha 6 de cada planilha haverá dados em um certo número de colunas (por exemplo, colunas A até G, ou até H, ou até I).  
+    Este script irá detectar quantas colunas realmente têm conteúdo a partir da linha 6 e mesclar apenas até esse último índice de coluna.
     """
 )
 
@@ -69,7 +72,7 @@ def extrair_blocos_empresas(df: pd.DataFrame) -> dict:
             "CNPJ": str(bloco.iloc[1, 1]).strip() if bloco.shape[0] > 1 else "",
             "ENDERECO": str(bloco.iloc[2, 1]).strip() if bloco.shape[0] > 2 else "",
             "TELEFONE": str(bloco.iloc[3, 1]).strip() if bloco.shape[0] > 3 else "",
-            "EMAIL": str(bloco.iloc[4, 1]).strip() if bloco.shape[0] > 4 else "",
+            "E-MAIL": str(bloco.iloc[4, 1]).strip() if bloco.shape[0] > 4 else "",
         }
     return dados
 
@@ -131,39 +134,46 @@ if dados_empresas_file and arquivos_empresas:
             for m in list(ws.merged_cells.ranges):
                 ws.unmerge_cells(str(m))
 
-            # Insere 5 linhas vazias no topo para cada linha de cabeçalho
+            # INSERIR 5 LINHAS PARA CABEÇALHO
             ws.insert_rows(1, amount=5)
 
-            # Mescla e preenche cada linha separadamente:
-            # Linha 1 (A1:H1) para Razão Social
-            ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=8)
+            # Determinar até qual coluna há dados a partir da linha 6
+            last_col = 1  # mínimo será 1
+            # Verifica a linha 6 para encontrar última coluna não vazia
+            for idx_col, val in enumerate(ws.iter_rows(min_row=6, max_row=6, values_only=True)[0], start=1):
+                if val is not None and str(val).strip() != "":
+                    last_col = idx_col
+
+            # Mescla e preenche cada linha de cabeçalho de acordo com last_col
+            # Linha 1: Razão Social (A1 até última coluna)
+            ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=last_col)
             cell1 = ws.cell(row=1, column=1)
             cell1.alignment = Alignment(horizontal="left", vertical="center")
             cell1.value = f"RAZÃO SOCIAL: {info['RAZAO_SOCIAL']}"
 
-            # Linha 2 (A2:H2) para CNPJ
-            ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=8)
+            # Linha 2: CNPJ
+            ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=last_col)
             cell2 = ws.cell(row=2, column=1)
             cell2.alignment = Alignment(horizontal="left", vertical="center")
             cell2.value = f"CNPJ: {info['CNPJ']}"
 
-            # Linha 3 (A3:H3) para Endereço
-            ws.merge_cells(start_row=3, start_column=1, end_row=3, end_column=8)
+            # Linha 3: Endereço (pode envolver quebra de texto se for muito longo)
+            ws.merge_cells(start_row=3, start_column=1, end_row=3, end_column=last_col)
             cell3 = ws.cell(row=3, column=1)
             cell3.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
             cell3.value = f"ENDEREÇO: {info['ENDERECO']}"
 
-            # Linha 4 (A4:H4) para Telefone
-            ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=8)
+            # Linha 4: Telefone
+            ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=last_col)
             cell4 = ws.cell(row=4, column=1)
             cell4.alignment = Alignment(horizontal="left", vertical="center")
             cell4.value = f"TELEFONE: {info['TELEFONE']}"
 
-            # Linha 5 (A5:H5) para E-mail
-            ws.merge_cells(start_row=5, start_column=1, end_row=5, end_column=8)
+            # Linha 5: E-mail
+            ws.merge_cells(start_row=5, start_column=1, end_row=5, end_column=last_col)
             cell5 = ws.cell(row=5, column=1)
             cell5.alignment = Alignment(horizontal="left", vertical="center")
-            cell5.value = f"E-MAIL: {info['EMAIL']}"
+            cell5.value = f"E-MAIL: {info['E-MAIL']}"
 
             # Salva a planilha modificada em memória e adiciona ao ZIP
             buffer = BytesIO()
