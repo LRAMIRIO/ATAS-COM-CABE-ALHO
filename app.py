@@ -1,4 +1,8 @@
-import streamlit as st
+import os
+import zipfile
+
+# Criar conteúdo corrigido para app.py
+corrected_app_py = '''import streamlit as st
 import pandas as pd
 import unicodedata
 from difflib import get_close_matches
@@ -40,8 +44,9 @@ arquivos_empresas = st.file_uploader(
 )
 
 def normalizar(texto: str) -> str:
-    texto = unicodedata.normalize("NFKD", texto).encode("ASCII", "ignore").decode("utf-8")
-    return "".join(c for c in texto if c.isalnum() or c.isspace()).lower().strip()
+    texto_nfkd = unicodedata.normalize("NFKD", texto)
+    texto_ascii = texto_nfkd.encode("ASCII", "ignore").decode("utf-8")
+    return "".join(c for c in texto_ascii if c.isalnum() or c.isspace()).lower().strip()
 
 def extrair_blocos_empresas(df: pd.DataFrame) -> dict:
     """
@@ -58,11 +63,11 @@ def extrair_blocos_empresas(df: pd.DataFrame) -> dict:
             continue
         nome_real = str(bloco.iloc[0, 1]).strip()
         dados[nome_real] = {
-            "RAZÃO SOCIAL": nome_real,
+            "RAZAO_SOCIAL": nome_real,
             "CNPJ": str(bloco.iloc[1, 1]).strip() if bloco.shape[0] > 1 else "",
-            "ENDEREÇO": str(bloco.iloc[2, 1]).strip() if bloco.shape[0] > 2 else "",
+            "ENDERECO": str(bloco.iloc[2, 1]).strip() if bloco.shape[0] > 2 else "",
             "TELEFONE": str(bloco.iloc[3, 1]).strip() if bloco.shape[0] > 3 else "",
-            "E-MAIL": str(bloco.iloc[4, 1]).strip() if bloco.shape[0] > 4 else "",
+            "EMAIL": str(bloco.iloc[4, 1]).strip() if bloco.shape[0] > 4 else "",
         }
     return dados
 
@@ -105,7 +110,7 @@ if dados_empresas_file and arquivos_empresas:
 
             encontrado = match[0]
             dados = dados_empresas_norm[encontrado]
-            match_log.append(f"✅ {nome_empresa} ➜ {dados['RAZÃO SOCIAL']}")
+            match_log.append(f"✅ {nome_empresa} ➜ {dados['RAZAO_SOCIAL']}")
 
             try:
                 wb = load_workbook(arquivo)
@@ -124,20 +129,16 @@ if dados_empresas_file and arquivos_empresas:
 
             # Mescla A1:H5 em única célula
             ws.merge_cells(start_row=1, start_column=1, end_row=5, end_column=8)
-            cell = ws["A1"]
+            cell = ws.cell(row=1, column=1)
             cell.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
 
             # Preenche a célula A1 com todas as informações, quebrando linha
             texto_cabecalho = (
-                f"RAZÃO SOCIAL: {dados['RAZÃO SOCIAL']}
-"
-                f"CNPJ: {dados['CNPJ']}
-"
-                f"ENDEREÇO: {dados['ENDEREÇO']}
-"
-                f"TELEFONE: {dados['TELEFONE']}
-"
-                f"E-MAIL: {dados['E-MAIL']}"
+                "RAZÃO SOCIAL: " + dados["RAZAO_SOCIAL"] + "\\n"
+                "CNPJ: " + dados["CNPJ"] + "\\n"
+                "ENDEREÇO: " + dados["ENDERECO"] + "\\n"
+                "TELEFONE: " + dados["TELEFONE"] + "\\n"
+                "E-MAIL: " + dados["EMAIL"]
             )
             cell.value = texto_cabecalho
 
@@ -161,3 +162,28 @@ if dados_empresas_file and arquivos_empresas:
     )
 else:
     st.info("Aguardando upload dos arquivos: primeiro DADOS DAS EMPRESAS, depois as planilhas por empresa.")
+'''
+
+# Conteúdo do requirements.txt
+requirements_txt = '''streamlit
+pandas
+openpyxl
+'''
+
+# Caminhos dos arquivos
+os.makedirs("/mnt/data/streamlit_app_corrected", exist_ok=True)
+app_py_path = "/mnt/data/streamlit_app_corrected/app.py"
+requirements_path = "/mnt/data/streamlit_app_corrected/requirements.txt"
+
+with open(app_py_path, "w") as f:
+    f.write(corrected_app_py)
+with open(requirements_path, "w") as f:
+    f.write(requirements_txt)
+
+# Criar o zip
+corrected_zip_path = "/mnt/data/streamlit_app_corrected.zip"
+with zipfile.ZipFile(corrected_zip_path, "w") as zf:
+    zf.write(app_py_path, arcname="app.py")
+    zf.write(requirements_path, arcname="requirements.txt")
+
+corrected_zip_path
