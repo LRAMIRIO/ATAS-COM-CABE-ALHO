@@ -12,26 +12,15 @@ st.title("Gerador de Planilhas com Cabeçalho para Empresas")
 
 st.markdown(
     """
-    1. Faça upload da planilha **“DADOS DAS EMPRESAS.xlsx”** (blocos de 6 linhas por empresa):
-       - Coluna B, linha 1 do bloco: **Razão Social**  
-       - Coluna B, linha 2 do bloco: **CNPJ**  
-       - Coluna B, linha 3 do bloco: **Endereço (completo)**  
-       - Coluna B, linha 4 do bloco: **Telefone**  
-       - Coluna B, linha 5 do bloco: **E-mail**  
+    1. Faça upload da planilha **“DADOS DAS EMPRESAS.xlsx”**, que deve conter blocos de 6 linhas para cada empresa:
+       - Coluna B da linha 1 de cada bloco: **Razão Social**
+       - Coluna B da linha 2 de cada bloco: **CNPJ**
+       - Coluna B da linha 3 de cada bloco: **Endereço (completo)**
+       - Coluna B da linha 4 de cada bloco: **Telefone**
+       - Coluna B da linha 5 de cada bloco: **E-mail**
 
-    2. Em seguida, faça upload das planilhas individuais (.xlsx) de cada empresa.  
-       O nome do arquivo deve corresponder (ao menos parcialmente) à razão social para que a correspondência funcione.  
-
-    **Sobre a mesclagem dinâmica do cabeçalho**  
-    Cada planilha “empresa.xlsx” tem:
-    - Linha 6: títulos da tabela (por exemplo, “ITEM”, “DESCRIÇÃO…”, etc.), mas muitos desses títulos podem estar mesclados.  
-    - Linha 7: primeiro registro de dados, geralmente com valores em todas as colunas A, B, C, etc.  
-
-    Para encontrar a última coluna “ocupada”, o script NÃO usa a linha 6 (que pode ter células mescladas), mas sim a **linha 7** (primeiros dados).  
-    Depois de determinar o índice da última coluna não vazia em **linha 7**, ele:
-      1. Insere 5 linhas em branco no topo.  
-      2. Mescla cada uma das linhas 1 a 5 de **A até aquela última coluna** (por exemplo, A1:G1, A2:G2… A5:G5).  
-      3. Escreve Razão Social, CNPJ, Endereço, Telefone e E-mail nessas células mescladas.
+    2. Depois, faça upload das planilhas individuais (uma por empresa).  
+       O nome de cada arquivo deve corresponder, ao menos parcialmente, à razão social para que a correspondência funcione.
     """
 )
 
@@ -42,7 +31,7 @@ dados_empresas_file = st.file_uploader(
     key="dados_empresas"
 )
 
-# 2) Upload das planilhas individuais por empresa
+# 2) Upload das planilhas separadas por empresa
 arquivos_empresas = st.file_uploader(
     "2) Selecione as planilhas individuais por empresa (.xlsx)",
     type="xlsx",
@@ -52,7 +41,7 @@ arquivos_empresas = st.file_uploader(
 
 def normalizar(texto: str) -> str:
     """
-    Remove acentos e caracteres não alfanuméricos, deixa tudo em minúsculo e sem pontuação.
+    Remove acentos e caracteres não alfanuméricos, deixa tudo minúsculo e sem pontuação.
     """
     nfkd = unicodedata.normalize("NFKD", texto)
     ascii_txt = nfkd.encode("ASCII", "ignore").decode("utf-8")
@@ -60,23 +49,14 @@ def normalizar(texto: str) -> str:
 
 def extrair_blocos_empresas(df: pd.DataFrame) -> dict:
     """
-    Agrupa o DataFrame sem cabeçalho em blocos de 6 linhas cada, extraindo da coluna B:
-      - Linha 1 do bloco → Razão Social
-      - Linha 2 do bloco → CNPJ
-      - Linha 3 do bloco → Endereço completo
-      - Linha 4 do bloco → Telefone
-      - Linha 5 do bloco → E-mail
-    Retorna:
-      {
-        "Razão Social X": {
-            "RAZAO_SOCIAL": ...,
-            "CNPJ": ...,
-            "ENDERECO": ...,
-            "TELEFONE": ...,
-            "E-MAIL": ...
-        },
-        ...
-      }
+    Recebe um DataFrame sem cabeçalho e agrupa de 6 em 6 linhas, extraindo da coluna B (índice 1):
+      - Linha 1 de cada bloco: Razão Social
+      - Linha 2 de cada bloco: CNPJ
+      - Linha 3 de cada bloco: Endereço completo
+      - Linha 4 de cada bloco: Telefone
+      - Linha 5 de cada bloco: E-mail
+    Retorna um dicionário:
+      { "Razão Social": { "RAZAO_SOCIAL": ..., "CNPJ": ..., "ENDERECO": ..., "TELEFONE": ..., "EMAIL": ... }, ... }
     """
     dados = {}
     for i in range(0, len(df), 6):
@@ -89,36 +69,36 @@ def extrair_blocos_empresas(df: pd.DataFrame) -> dict:
             "CNPJ": str(bloco.iloc[1, 1]).strip() if bloco.shape[0] > 1 else "",
             "ENDERECO": str(bloco.iloc[2, 1]).strip() if bloco.shape[0] > 2 else "",
             "TELEFONE": str(bloco.iloc[3, 1]).strip() if bloco.shape[0] > 3 else "",
-            "E-MAIL": str(bloco.iloc[4, 1]).strip() if bloco.shape[0] > 4 else "",
+            "EMAIL": str(bloco.iloc[4, 1]).strip() if bloco.shape[0] > 4 else "",
         }
     return dados
 
 if dados_empresas_file and arquivos_empresas:
-    # 1) Carrega “DADOS DAS EMPRESAS.xlsx” sem cabeçalho
+    # Tenta ler o Excel sem cabeçalho
     try:
         df_empresas = pd.read_excel(dados_empresas_file, header=None)
     except Exception as e:
-        st.error(f"❌ Erro ao ler “DADOS DAS EMPRESAS.xlsx”: {e}")
+        st.error(f"❌ Erro ao ler ‘DADOS DAS EMPRESAS.xlsx’: {e}")
         st.stop()
 
-    # 2) Extrai blocos de 6 linhas
+    # Extrai blocos de 6 linhas
     dados_empresas = extrair_blocos_empresas(df_empresas)
     if not dados_empresas:
-        st.error("❌ Não foram encontrados blocos válidos em “DADOS DAS EMPRESAS.xlsx”.")
+        st.error("❌ Não foram encontrados blocos válidos na planilha DADOS DAS EMPRESAS.xlsx.")
         st.stop()
 
-    # 3) Normaliza chaves (razões sociais) para correspondência aproximada
+    # Normaliza nomes para correspondência
     dados_empresas_norm = { normalizar(nome): info for nome, info in dados_empresas.items() }
 
     st.subheader("Razões Sociais Detectadas")
-    c1, c2 = st.columns(2)
+    coluna1, coluna2 = st.columns(2)
     for idx, razao in enumerate(dados_empresas.keys()):
         if idx % 2 == 0:
-            c1.write(f"- {razao}")
+            coluna1.write(f"- {razao}")
         else:
-            c2.write(f"- {razao}")
+            coluna2.write(f"- {razao}")
 
-    # 4) Preparar o ZIP em memória
+    # Preparar buffer ZIP em memória
     output_zip = BytesIO()
     match_log = []
 
@@ -128,7 +108,7 @@ if dados_empresas_file and arquivos_empresas:
             base_nome = nome_arquivo.replace(".xlsx", "").strip()
             nome_norm = normalizar(base_nome)
 
-            # 4.1) Encontra correspondência aproximada
+            # Busca correspondência
             matches = get_close_matches(nome_norm, dados_empresas_norm.keys(), n=1, cutoff=0.3)
             if not matches:
                 match_log.append(f"❌ NÃO ENCONTRADO: {base_nome} (normalizado: {nome_norm})")
@@ -138,69 +118,65 @@ if dados_empresas_file and arquivos_empresas:
             info = dados_empresas_norm[chave]
             match_log.append(f"✅ {base_nome} → {info['RAZAO_SOCIAL']}")
 
-            # 4.2) Abre a planilha individual
+            # Carrega a planilha da empresa
             try:
                 wb = load_workbook(arquivo)
             except Exception as e:
-                match_log.append(f"⚠️ Erro ao abrir “{nome_arquivo}”: {e}")
+                match_log.append(f"⚠️ Erro ao abrir ‘{nome_arquivo}’: {e}")
                 continue
 
             ws = wb.active
 
-            # 4.3) Detecta a última coluna NÃO VAZIA na LINHA 7 ORIGINAL (dados)
-            last_col = 1
-            # Pega valores da linha 7 (primeira linha de dados)
-            row7_vals = next(ws.iter_rows(min_row=7, max_row=7, values_only=True))
-            for idx_col, val in enumerate(row7_vals, start=1):
-                if val is not None and str(val).strip() != "":
-                    last_col = idx_col
+            # Remove mesclagens pré-existentes
+            for m in list(ws.merged_cells.ranges):
+                ws.unmerge_cells(str(m))
 
-            # 4.4) Insere 5 linhas vazias no topo para os cabeçalhos
+            # Insere 5 linhas vazias no topo para cada linha de cabeçalho
             ws.insert_rows(1, amount=5)
 
-            # 4.5) Mescla e preenche cada uma das 5 primeiras linhas de A até last_col
-            # LINHA 1: Razão Social
-            ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=last_col)
-            c1 = ws.cell(row=1, column=1)
-            c1.alignment = Alignment(horizontal="left", vertical="center")
-            c1.value = f"RAZÃO SOCIAL: {info['RAZAO_SOCIAL']}"
+            # Mescla e preenche cada linha separadamente:
+            # Linha 1 (A1:H1) para Razão Social
+            ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=8)
+            cell1 = ws.cell(row=1, column=1)
+            cell1.alignment = Alignment(horizontal="left", vertical="center")
+            cell1.value = f"RAZÃO SOCIAL: {info['RAZAO_SOCIAL']}"
 
-            # LINHA 2: CNPJ
-            ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=last_col)
-            c2 = ws.cell(row=2, column=1)
-            c2.alignment = Alignment(horizontal="left", vertical="center")
-            c2.value = f"CNPJ: {info['CNPJ']}"
+            # Linha 2 (A2:H2) para CNPJ
+            ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=8)
+            cell2 = ws.cell(row=2, column=1)
+            cell2.alignment = Alignment(horizontal="left", vertical="center")
+            cell2.value = f"CNPJ: {info['CNPJ']}"
 
-            # LINHA 3: Endereço (wrap_text)
-            ws.merge_cells(start_row=3, start_column=1, end_row=3, end_column=last_col)
-            c3 = ws.cell(row=3, column=1)
-            c3.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
-            c3.value = f"ENDEREÇO: {info['ENDERECO']}"
+            # Linha 3 (A3:H3) para Endereço
+            ws.merge_cells(start_row=3, start_column=1, end_row=3, end_column=8)
+            cell3 = ws.cell(row=3, column=1)
+            cell3.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+            cell3.value = f"ENDEREÇO: {info['ENDERECO']}"
 
-            # LINHA 4: Telefone
-            ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=last_col)
-            c4 = ws.cell(row=4, column=1)
-            c4.alignment = Alignment(horizontal="left", vertical="center")
-            c4.value = f"TELEFONE: {info['TELEFONE']}"
+            # Linha 4 (A4:H4) para Telefone
+            ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=8)
+            cell4 = ws.cell(row=4, column=1)
+            cell4.alignment = Alignment(horizontal="left", vertical="center")
+            cell4.value = f"TELEFONE: {info['TELEFONE']}"
 
-            # LINHA 5: E-mail
-            ws.merge_cells(start_row=5, start_column=1, end_row=5, end_column=last_col)
-            c5 = ws.cell(row=5, column=1)
-            c5.alignment = Alignment(horizontal="left", vertical="center")
-            c5.value = f"E-MAIL: {info['E-MAIL']}"
+            # Linha 5 (A5:H5) para E-mail
+            ws.merge_cells(start_row=5, start_column=1, end_row=5, end_column=8)
+            cell5 = ws.cell(row=5, column=1)
+            cell5.alignment = Alignment(horizontal="left", vertical="center")
+            cell5.value = f"E-MAIL: {info['EMAIL']}"
 
-            # 4.6) Salvar a planilha modificada em memória e adicionar ao ZIP
+            # Salva a planilha modificada em memória e adiciona ao ZIP
             buffer = BytesIO()
             wb.save(buffer)
             buffer.seek(0)
             zipf.writestr(nome_arquivo, buffer.read())
 
-    # 5) Exibe log de correspondências
+    # Exibe o log de correspondências
     st.subheader("Log de Correspondências")
     for linha in match_log:
         st.write(linha)
 
-    # 6) Botão de download do ZIP final
+    # Botão de download do ZIP final
     output_zip.seek(0)
     st.download_button(
         label="📥 Baixar ZIP com Planilhas Formatadas",
