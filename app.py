@@ -23,9 +23,8 @@ st.markdown(
        O nome de cada arquivo deve corresponder, ao menos parcialmente, à razão social para que a correspondência funcione.
 
     **Importante:**  
-    O conteúdo de cada planilha “empresa.xlsx” começa efetivamente na **linha 6** (dados de colunas A, B, C etc.).  
-    Este script irá “ler” qual é a última coluna não vazia nessa linha 6 antes de inserir os 5 cabeçalhos.  
-    Assim, será capaz de mesclar as células de cabeçalho apenas até aquela última coluna dinâmica (A até, por exemplo, G ou H ou I).
+    A partir da linha 6 de cada planilha haverá dados em um certo número de colunas (por exemplo, colunas A até G, ou até H, ou até I).  
+    Este script detectará quantas colunas realmente têm conteúdo na linha 6 antes de inserir os 5 cabeçalhos, e mesclará apenas até essa última coluna dinâmica.
     """
 )
 
@@ -132,61 +131,50 @@ if dados_empresas_file and arquivos_empresas:
 
             ws = wb.active
 
-            # 1) Antes de inserir linhas, vamos detectar quantas colunas há a partir da linha 6
-            #    Isso considera que a linha 6 (antes da inserção) contém dados em colunas A, B, C, ... até a última
-            #    Após inserirmos cabeçalho, a linha 6 se tornará a linha 11, mas vamos buscar agora:
-            #    - Faça um loop sobre as células da linha 6 original (ou seja, ws[“6”])
-            #    - Descubra o índice da última coluna que não está em branco
-            last_col = 1  # Mínimo: coluna A
-            # Acesso direto às células da linha 6
-            for cell in ws[6]:
-                if cell.value is not None and str(cell.value).strip() != "":
-                    # cell.column retorna a letra (“A”, “B” etc.); para índice numérico, use cell.column_letter e depois converter
-                    # No openpyxl v3.x, use cell.column (inteiro). Caso seja string, converta letra para número.
-                    if isinstance(cell.column, int):
-                        idx_col = cell.column
-                    else:
-                        # Converter letra para índice: ord("A")→65, etc.
-                        idx_col = ord(cell.column.upper()) - ord("A") + 1
-                    last_col = max(last_col, idx_col)
+            # 1) Detectar a última coluna não vazia na linha 6 original
+            #    Percorremos da coluna 1 até ws.max_column, verificando a linha 6
+            last_col = 1
+            max_col = ws.max_column
+            for col_idx in range(1, max_col + 1):
+                cell_value = ws.cell(row=6, column=col_idx).value
+                if cell_value is not None and str(cell_value).strip() != "":
+                    last_col = col_idx
 
-            # 2) Agora inserimos 5 linhas em branco no topo para o cabeçalho
+            # 2) Inserir 5 linhas vazias no topo para o cabeçalho
             ws.insert_rows(1, amount=5)
 
-            # 3) Mesclamos cada uma das linhas 1 a 5, da coluna A até last_col
-            #    (Se last_col = 7, mescla A1→G1, A2→G2, etc.)
-            #    Ajusta alinhamento conforme pedido
-            # LINHA 1 (Razão Social)
+            # 3) Mesclar e preencher cada linha de cabeçalho de A até última coluna detectada
+            # Linha 1: Razão Social
             ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=last_col)
             c1 = ws.cell(row=1, column=1)
             c1.alignment = Alignment(horizontal="left", vertical="center")
             c1.value = f"RAZÃO SOCIAL: {info['RAZAO_SOCIAL']}"
 
-            # LINHA 2 (CNPJ)
+            # Linha 2: CNPJ
             ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=last_col)
             c2 = ws.cell(row=2, column=1)
             c2.alignment = Alignment(horizontal="left", vertical="center")
             c2.value = f"CNPJ: {info['CNPJ']}"
 
-            # LINHA 3 (Endereço)
+            # Linha 3: Endereço
             ws.merge_cells(start_row=3, start_column=1, end_row=3, end_column=last_col)
             c3 = ws.cell(row=3, column=1)
             c3.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
             c3.value = f"ENDEREÇO: {info['ENDERECO']}"
 
-            # LINHA 4 (Telefone)
+            # Linha 4: Telefone
             ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=last_col)
             c4 = ws.cell(row=4, column=1)
             c4.alignment = Alignment(horizontal="left", vertical="center")
             c4.value = f"TELEFONE: {info['TELEFONE']}"
 
-            # LINHA 5 (E-mail)
+            # Linha 5: E-mail
             ws.merge_cells(start_row=5, start_column=1, end_row=5, end_column=last_col)
             c5 = ws.cell(row=5, column=1)
             c5.alignment = Alignment(horizontal="left", vertical="center")
             c5.value = f"E-MAIL: {info['E-MAIL']}"
 
-            # 4) Por fim, salva esta planilha em memória e adiciona ao ZIP
+            # 4) Salvar a planilha modificada em memória e adicionar ao ZIP
             buffer = BytesIO()
             wb.save(buffer)
             buffer.seek(0)
